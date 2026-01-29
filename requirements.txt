@@ -1,0 +1,7 @@
+streamlit>=1.30.0
+google-genai>=0.4.0
+Pillow>=10.0.0
+ezdxf>=1.4.0
+pydantic>=2.5.0
+python-dotenv>=1.0.0
+opencv-python>=4.8.0
