@@ -12,6 +12,8 @@ from src.image_processor import ImageProcessor
 from src.gemini_extractor import GeminiGeometryExtractor, ExtractionError, create_mock_geometry
 from src.dxf_synthesizer import DXFSynthesizer
 from src.dxf_viewer import display_dxf_viewer
+from src.paddle_ocr import is_paddle_ocr_available
+from src.extractors import CompositeExtractor, PrimaryGeminiExtractor, LocalLineExtractor
 
 
 def main():
@@ -45,6 +47,43 @@ def main():
             "Show preprocessed image",
             value=True,
             help="Display the line-extracted image used for wall detection"
+        )
+
+        st.divider()
+
+        # Accuracy Enhancement Settings
+        st.subheader("Accuracy Enhancements")
+
+        use_validation = st.checkbox(
+            "Enable Validation",
+            value=True,
+            help="Apply OCR corrections and validate extracted dimensions"
+        )
+
+        use_snap = st.checkbox(
+            "Snap to Standards",
+            value=False,
+            help="Round dimension values to common CAD standards. WARNING: May alter correctly detected values."
+        )
+
+        # PaddleOCR status and toggle
+        paddle_available = is_paddle_ocr_available()
+        if paddle_available:
+            use_paddle_ocr = st.checkbox(
+                "Use PaddleOCR",
+                value=True,
+                help="Use specialized OCR for better handwriting recognition"
+            )
+        else:
+            use_paddle_ocr = False
+            st.caption("PaddleOCR not installed")
+            with st.expander("Install PaddleOCR"):
+                st.code("pip install paddlepaddle paddleocr", language="bash")
+
+        use_calibration = st.checkbox(
+            "Auto-calibrate Scale",
+            value=True,
+            help="Detect scale from dimension annotations or scale notation"
         )
 
         st.divider()
@@ -101,6 +140,7 @@ def main():
     # Extract button
     if st.button("Extract Geometry", type="primary"):
         geometry = None
+        calibration = None
 
         if use_mock:
             geometry = create_mock_geometry(width, height)
@@ -111,14 +151,36 @@ def main():
         else:
             with st.spinner("Analyzing with Gemini..."):
                 try:
-                    extractor = GeminiGeometryExtractor()
+                    composite = CompositeExtractor(
+                        PrimaryGeminiExtractor(),
+                        LocalLineExtractor(),
+                        use_local_on_empty=True,
+                    )
+                    extractor = GeminiGeometryExtractor(geometry_extractor=composite)
 
                     if extraction_mode == "Two-Pass (Recommended)":
-                        st.text("Pass 1: Extracting walls...")
-                        geometry = extractor.extract_two_pass(image, preprocessed)
+                        # Use hybrid extraction with all enhancements
+                        st.text("Pass 1: Extracting geometry...")
                         st.text("Pass 2: Extracting text...")
+
+                        if use_paddle_ocr or use_validation or use_calibration:
+                            st.text("Applying enhancements...")
+                            geometry, calibration = extractor.extract_hybrid(
+                                original_image=image,
+                                preprocessed_image=preprocessed,
+                                use_paddle_ocr=use_paddle_ocr,
+                                apply_validation=use_validation,
+                                apply_snap=use_snap,
+                                apply_calibration=use_calibration
+                            )
+                        else:
+                            geometry = extractor.extract_two_pass(image, preprocessed)
                     else:
-                        geometry = extractor.extract_validated(image)
+                        geometry = extractor.extract_validated(
+                            image,
+                            apply_validation=use_validation,
+                            apply_snap=use_snap
+                        )
 
                 except ExtractionError as e:
                     st.error(f"Extraction failed: {e}")
@@ -129,18 +191,33 @@ def main():
 
         if geometry:
             st.session_state["geometry"] = geometry
+            st.session_state["calibration"] = calibration
 
-            # Generate DXF
+            # Generate DXF with calibration if available
             synth = DXFSynthesizer(version=dxf_version)
-            dxf_bytes = synth.generate(geometry, scale=scale)
+
+            if calibration and use_calibration:
+                dxf_bytes = synth.generate_with_calibration(
+                    geometry,
+                    calibration=calibration,
+                    user_scale=scale
+                )
+            else:
+                dxf_bytes = synth.generate(geometry, scale=scale)
+
             st.session_state["dxf"] = dxf_bytes
 
-            st.success(f"Extracted {len(geometry.entities)} entities (confidence: {geometry.metadata.confidence_score:.0%})")
+            # Show success message with calibration info
+            msg = f"Extracted {len(geometry.entities)} entities (confidence: {geometry.metadata.confidence_score:.0%})"
+            if calibration:
+                msg += f" | Scale detected: 1:{int(calibration.scale_factor)}"
+            st.success(msg)
 
     # Results
     if "geometry" in st.session_state:
         geometry = st.session_state["geometry"]
         dxf_bytes = st.session_state.get("dxf")
+        calibration = st.session_state.get("calibration")
 
         st.divider()
 
@@ -157,9 +234,17 @@ def main():
             else:
                 st.warning("No entities extracted")
 
+            # Calibration info
+            if calibration:
+                with st.expander("Scale Calibration", expanded=True):
+                    st.write(f"**Method:** {calibration.method}")
+                    st.write(f"**Scale:** 1:{int(calibration.scale_factor)}")
+                    st.write(f"**Confidence:** {calibration.confidence:.0%}")
+                    st.write(f"**Reference:** {calibration.reference_description}")
+
             # Warnings
             if geometry.warnings:
-                with st.expander(f"Warnings ({len(geometry.warnings)})"):
+                with st.expander(f"Warnings & Corrections ({len(geometry.warnings)})"):
                     for w in geometry.warnings:
                         st.write(f"- {w}")
 

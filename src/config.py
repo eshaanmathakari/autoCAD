@@ -16,7 +16,16 @@ load_dotenv()
 
 # API Configuration
 GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
-GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-pro-preview-05-06")
+# Available Gemini 3 models (January 2026):
+# - gemini-3-pro-preview: Best for complex vision/reasoning tasks (1M token context)
+# - gemini-3-flash-preview: Fast model for simpler tasks
+# - gemini-3-pro-image-preview: For image generation (Nano Banana Pro)
+# For sketch extraction, gemini-3-pro-preview is recommended for best accuracy
+GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-3-pro-preview")
+# Fallback model when primary times out (e.g. gemini-2.0-flash, gemini-3-flash-preview)
+GEMINI_FALLBACK_MODEL = os.environ.get("GEMINI_FALLBACK_MODEL", "gemini-2.0-flash")
+# Request timeout in seconds (SDK default is 60; vision + structured output often needs more)
+GEMINI_REQUEST_TIMEOUT_SEC = int(os.environ.get("GEMINI_REQUEST_TIMEOUT_SEC", "120"))
 
 # File handling
 SUPPORTED_IMAGE_TYPES = ["png", "jpg", "jpeg"]
@@ -73,6 +82,7 @@ Your task is to extract ALL geometric primitives and convert them to a structure
    - Extract room names (BEDROOM, KITCHEN, BATHROOM, etc.)
    - Extract any dimension values shown
    - Include floor plan title if visible
+   - Read text EXACTLY as shown - do not modify or correct values
 
 6. **CIRCLES**: Columns, circular features, trees/landscaping
    - Structural columns

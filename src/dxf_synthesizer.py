@@ -13,6 +13,8 @@ import ezdxf
 from ezdxf.document import Drawing
 from ezdxf.layouts import Modelspace
 
+from typing import Optional
+
 from .config import (
     DEFAULT_DRAWING_WIDTH,
     DEFAULT_DRAWING_HEIGHT,
@@ -31,6 +33,7 @@ from .geometry_models import (
     Point2D,
     LayerType,
 )
+from .calibration import CalibrationResult
 
 
 class DXFSynthesizer:
@@ -308,3 +311,62 @@ class DXFSynthesizer:
     def get_errors(self) -> list[str]:
         """Get list of errors encountered during generation."""
         return self.errors.copy()
+
+    def generate_with_calibration(
+        self,
+        geometry: SketchGeometry,
+        calibration: Optional[CalibrationResult] = None,
+        user_scale: float = 1.0
+    ) -> bytes:
+        """
+        Generate DXF file with automatic scale calibration.
+
+        Uses the calibration result to determine the correct scale factor
+        so that dimensions in the output match the real-world measurements
+        from the original sketch.
+
+        Args:
+            geometry: Validated SketchGeometry object
+            calibration: CalibrationResult from scale detection (optional)
+            user_scale: Additional user-specified scale factor (default 1.0)
+
+        Returns:
+            DXF file as bytes
+        """
+        # Calculate effective scale
+        if calibration:
+            # The calibration tells us how many pixels per real-world mm
+            # We need to convert from normalized (0-1000) to real-world mm
+            #
+            # normalized_coord / 1000 * drawing_width = output_mm
+            # We want: output_mm = real_world_mm
+            #
+            # If scale_factor is the drawing scale (e.g., 100 for 1:100),
+            # then the drawing represents real_world dimensions scaled down.
+            # For a 1:100 drawing, a 10m wall appears as 100mm on paper.
+            #
+            # To output at 1:1, we multiply by scale_factor
+            # To output at user's preferred scale, we then apply user_scale
+            effective_scale = user_scale * calibration.scale_factor
+        else:
+            effective_scale = user_scale
+
+        return self.generate(geometry, scale=effective_scale)
+
+    @staticmethod
+    def compute_scale_from_calibration(
+        calibration: CalibrationResult,
+        target_scale: float = 1.0
+    ) -> float:
+        """
+        Compute the DXF scale factor from calibration data.
+
+        Args:
+            calibration: CalibrationResult with scale_factor
+            target_scale: Target output scale (1.0 = same as detected,
+                         0.5 = half size, 2.0 = double size)
+
+        Returns:
+            Scale factor to pass to generate()
+        """
+        return calibration.scale_factor * target_scale

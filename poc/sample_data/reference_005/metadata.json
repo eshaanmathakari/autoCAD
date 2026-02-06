@@ -1,0 +1,8 @@
+{
+  "name": "Pool with Spa",
+  "pool_type": "rectangular",
+  "num_edges": 24,
+  "has_stairs": true,
+  "shallow_depth": "3'6\"",
+  "deep_depth": "8'"
+}

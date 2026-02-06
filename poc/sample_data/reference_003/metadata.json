@@ -1,0 +1,8 @@
+{
+  "name": "Kidney Pool",
+  "pool_type": "kidney",
+  "num_edges": 40,
+  "has_stairs": false,
+  "shallow_depth": "3'6\"",
+  "deep_depth": "8'"
+}

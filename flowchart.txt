@@ -1,0 +1,125 @@
+graph TD
+    %% Styling
+    classDef inputOutput fill:#1a1a2e,stroke:#e94560,color:#ffffff,stroke-width:2px
+    classDef step fill:#0f3460,stroke:#16213e,color:#ffffff,stroke-width:2px
+    classDef subprocess fill:#1a1a3e,stroke:#533483,color:#dddddd,stroke-width:1px
+    classDef verify fill:#1b4332,stroke:#2d6a4f,color:#ffffff,stroke-width:2px
+    classDef human fill:#5c2d91,stroke:#7b3fa0,color:#ffffff,stroke-width:2px
+    classDef learning fill:#6b3a2a,stroke:#b85c38,color:#ffffff,stroke-width:1px
+    classDef decision fill:#e94560,stroke:#e94560,color:#ffffff,stroke-width:2px
+
+    %% INPUT
+    INPUT["Scanned Hand-Drawn Pool Sketch"]:::inputOutput
+
+    %% STEP 1: REFERENCE MATCHING
+    INPUT --> PREPROCESS
+
+    subgraph STEP1["STEP 1: Reference Matching"]
+        direction TB
+        PREPROCESS["Image Preprocessing: RGB conversion, resize, Line extraction"]:::subprocess
+        PREPROCESS --> EMBED
+
+        subgraph EMBEDDING["Multi-Signal Embedding"]
+            direction LR
+            DINOV2["DINOv2 structural similarity Weight 0.6"]:::subprocess
+            CLIP["CLIP semantic similarity Weight 0.3"]:::subprocess
+            STRUCT["OpenCV Features corners aspect ratio curves Weight 0.1"]:::subprocess
+        end
+        EMBED["Generate Embeddings"]:::step --> DINOV2 & CLIP & STRUCT
+
+        DINOV2 & CLIP & STRUCT --> FAISS["FAISS Vector Search 1000 reference folders indexed"]:::step
+        FAISS --> PREFILTER["Structural Pre-Filter pool type and corner count"]:::step
+        PREFILTER --> TOP5["Ranked Top-5 Matches Weighted Scoring"]:::step
+    end
+
+    TOP5 --> HUMAN1
+
+    HUMAN1{"Human Review Confirm match or select alternative"}:::human
+    HUMAN1 -->|Rejected| FAISS
+    HUMAN1 -->|Confirmed| STEP2_START
+
+    %% STEP 2: DIMENSION EXTRACTION
+    subgraph STEP2["STEP 2: Dimension Extraction and Line Drawing"]
+        direction TB
+        STEP2_START["Load matched reference geometry template"]:::step
+
+        subgraph OCR["Triple-Engine OCR Ensemble"]
+            direction LR
+            PADDLE["PaddleOCR general text"]:::subprocess
+            TROCR["TrOCR handwritten SOTA"]:::subprocess
+            GEMINI["Gemini Vision targeted region prompts"]:::subprocess
+        end
+
+        STEP2_START --> OCR
+        PADDLE & TROCR & GEMINI --> CONSENSUS["Consensus Voting Cluster by position"]:::step
+
+        CONSENSUS --> IMPERIAL["Imperial Parser Unit Conversion"]:::step
+        IMPERIAL --> MAPPER["Dimension Mapper Map OCR positions to geometry"]:::step
+        MAPPER --> LINEGEN["Line Drawing Generator Constraint solver"]:::step
+
+        subgraph SANDBOX2["Verification Sandbox max 5 iterations"]
+            direction TB
+            RENDER2["Render line drawing to image"]:::verify
+            REOCR2["Re-extract dimensions from generated drawing"]:::verify
+            COMPARE2["Compare dimensions input vs generated"]:::verify
+            PASS2{All dimensions match?}:::decision
+            RENDER2 --> REOCR2 --> COMPARE2 --> PASS2
+            PASS2 -->|No| ADJUST2["Adjust geometry and re-render"]:::verify
+            ADJUST2 --> RENDER2
+        end
+
+        LINEGEN --> RENDER2
+    end
+
+    PASS2 -->|Yes| HUMAN2
+
+    HUMAN2{"Human Review Verify dimensions Edit if needed"}:::human
+    HUMAN2 -->|Corrections| IMPERIAL
+    HUMAN2 -->|Approved| STEP3_START
+
+    %% STEP 3: PROFESSIONAL CAD
+    subgraph STEP3["STEP 3: Professional Pool CAD Generation"]
+        direction TB
+        STEP3_START["Load reference CAD DXF and verified dimensions"]:::step
+        STEP3_START --> TEMPLATE["Template Engine Parametric DXF Processing"]:::step
+        TEMPLATE --> RULES["Pool Domain Rules Stairs Riser Coping and Safety Ledges"]:::step
+        RULES --> SYNTH["Pool DXF Synthesizer Multi-Layer Generation"]:::step
+        SYNTH --> LINER["Full Liner Specification Seams Overlaps and Equipment"]:::step
+
+        subgraph SANDBOX3["Verification Sandbox"]
+            direction TB
+            RENDER3["Render CAD to image"]:::verify
+            VCOMP3["Visual Comparator SSIM and contour matching"]:::verify
+            DCHECK3["Dimension Cross-Check All dims verified"]:::verify
+            PASS3{All checks pass?}:::decision
+            RENDER3 --> VCOMP3 --> DCHECK3 --> PASS3
+            PASS3 -->|No| READJUST3["Adjust template parameters"]:::verify
+            READJUST3 --> RENDER3
+        end
+
+        LINER --> RENDER3
+    end
+
+    PASS3 -->|Yes| HUMAN3
+
+    HUMAN3{"Human Review Final approval and Interactive DXF viewer"}:::human
+    HUMAN3 -->|Corrections| TEMPLATE
+    HUMAN3 -->|Approved| OUTPUT
+
+    OUTPUT["Professional Pool Lining DXF Download and AutoCAD ready"]:::inputOutput
+
+    %% RECURSIVE LEARNING
+    subgraph LEARNING["Recursive Learning System"]
+        direction TB
+        STORE["Feedback Store SQLite Correction Logs"]:::learning
+        EMBUP["Embedding Updater Weight adjustment from acceptance"]:::learning
+        RULELEARN["Rule Learner OCR patterns and Feature patterns"]:::learning
+        STORE --> EMBUP & RULELEARN
+    end
+
+    HUMAN1 -.->|"Corrections"| STORE
+    HUMAN2 -.->|"Corrections"| STORE
+    HUMAN3 -.->|"Corrections"| STORE
+    EMBUP -.->|"Improved weights"| FAISS
+    RULELEARN -.->|"Updated rules"| IMPERIAL
+    RULELEARN -.->|"Updated rules"| RULES

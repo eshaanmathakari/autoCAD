@@ -12,7 +12,7 @@ Coordinate system: 0-1000 normalized (Gemini's native format)
 """
 
 from pydantic import BaseModel, Field, field_validator
-from typing import Annotated, Literal, Union
+from typing import Annotated, Literal, Union, Optional
 from enum import Enum
 
 
@@ -104,10 +104,10 @@ class DimensionEntity(BaseModel):
     type: Literal["dimension"] = "dimension"
     start: Point2D = Field(..., description="First measurement point")
     end: Point2D = Field(..., description="Second measurement point")
-    text_position: Point2D | None = Field(
+    text_position: Optional[Point2D] = Field(
         default=None, description="Position of dimension text (optional)"
     )
-    value: str | None = Field(
+    value: Optional[str] = Field(
         default=None, description="Dimension value as string (e.g., '50mm', '2.5\"')"
     )
     unit: str = Field(default="mm", description="Unit of measurement")
@@ -129,8 +129,8 @@ GeometryEntity = Union[
 
 class SketchMetadata(BaseModel):
     """Metadata about the analyzed sketch."""
-    title: str | None = Field(default=None, description="Title if found in sketch")
-    drawing_scale: str | None = Field(
+    title: Optional[str] = Field(default=None, description="Title if found in sketch")
+    drawing_scale: Optional[str] = Field(
         default=None, description="Scale notation if present (e.g., '1:100')"
     )
     detected_units: str = Field(default="mm", description="Detected or assumed units")
@@ -138,8 +138,8 @@ class SketchMetadata(BaseModel):
         default="2d_orthographic",
         description="Type of sketch (2d_orthographic, isometric, perspective)"
     )
-    image_width: int | None = Field(default=None, description="Original image width in pixels")
-    image_height: int | None = Field(default=None, description="Original image height in pixels")
+    image_width: Optional[int] = Field(default=None, description="Original image width in pixels")
+    image_height: Optional[int] = Field(default=None, description="Original image height in pixels")
     confidence_score: Annotated[float, Field(ge=0.0, le=1.0)] = Field(
         ..., description="Overall extraction confidence (0-1)"
     )
