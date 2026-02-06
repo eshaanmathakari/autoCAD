@@ -98,7 +98,7 @@ def tab_reference_matching():
         if uploaded:
             image = Image.open(uploaded).convert("RGB")
             st.session_state.input_image = image
-            st.image(image, caption="Input Sketch", use_container_width=True)
+            st.image(image, caption="Input Sketch", width="stretch")
 
     with col_results:
         if st.session_state.input_image is not None:
@@ -124,7 +124,7 @@ def tab_reference_matching():
                             st.image(
                                 ref.line_drawing_path,
                                 caption=f"#{mr.rank} — {meta.get('name', ref.folder_id)}",
-                                use_container_width=True,
+                                width="stretch",
                             )
                     with col_info:
                         st.write(f"**Score:** {mr.score:.4f}")
@@ -165,7 +165,7 @@ def tab_dimension_extraction():
     with col_input:
         st.subheader("Input & Dimensions")
         if st.session_state.input_image:
-            st.image(st.session_state.input_image, caption="Input Sketch", use_container_width=True)
+            st.image(st.session_state.input_image, caption="Input Sketch", width="stretch")
 
         st.markdown("#### Extracted Dimensions")
         st.caption(

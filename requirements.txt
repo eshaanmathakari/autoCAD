@@ -4,7 +4,7 @@ Pillow>=10.0.0
 ezdxf>=1.4.0
 pydantic>=2.5.0
 python-dotenv>=1.0.0
-opencv-python>=4.8.0
+opencv-python-headless>=4.8.0
 
 # Accuracy enhancements
 paddlepaddle>=2.5.0
