@@ -10,22 +10,23 @@ Three-tab Streamlit app demonstrating the 3-step pipeline:
 import os
 import sys
 import json
-import io
 
 import streamlit as st
 from PIL import Image
-import numpy as np
 
 # Ensure poc package is importable
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+# Load Streamlit Cloud secrets into env if available
+if hasattr(st, "secrets"):
+    for key in ("GOOGLE_API_KEY", "GEMINI_MODEL"):
+        if key in st.secrets:
+            os.environ.setdefault(key, st.secrets[key])
+
 from poc.imperial_parser import parse as parse_imperial, ImperialDimension
-from poc.reference_matcher import ReferenceMatcher, MatchResult
-from poc.pool_dxf_generator import (
-    generate_pool_dxf, PoolSpec, PoolEdge, StairSpec, SAMPLE_POOLS,
-)
-from poc.template_deformer import deform_to_dimensions, load_dxf_edges, compute_bbox
-from poc.dimension_checker import verify_dimensions, VerificationResult
+from poc.reference_matcher import ReferenceMatcher
+from poc.template_deformer import deform_to_dimensions
+from poc.dimension_checker import verify_dimensions
 
 # ---------------------------------------------------------------------------
 # Config
@@ -65,8 +66,12 @@ def get_matcher():
 def show_dxf_viewer(dxf_bytes: bytes, height: int = 450):
     """Render the Three.js DXF viewer."""
     try:
-        sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-        from src.dxf_viewer import generate_viewer_html
+        # Try the main project viewer first, fall back to bundled one
+        try:
+            sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+            from src.dxf_viewer import generate_viewer_html
+        except ImportError:
+            from poc.dxf_viewer_lite import generate_viewer_html
         import streamlit.components.v1 as components
         html = generate_viewer_html(dxf_bytes, height)
         components.html(html, height=height + 20, scrolling=False)
@@ -222,11 +227,6 @@ def tab_dimension_extraction():
                     st.session_state.deformation = result
 
                     # Auto-verify
-                    # Build target dims: edge 0 = length, edge 1 = width (for rectangular)
-                    bbox = compute_bbox(result.edges)
-                    gen_w = bbox[2] - bbox[0]
-                    gen_h = bbox[3] - bbox[1]
-
                     target_dims = {
                         0: parsed_len.total_inches,  # check overall width
                     }

@@ -51,3 +51,16 @@ streamlit run app.py
 - **Optional local DL (advanced/future):** Line-detection networks (e.g. [LCNN](https://github.com/zhou13/lcnn), [HAWP](https://github.com/cherubicxn/hawp)) or Segment Anything for regions could be added as extra extractors. Keep such models behind an optional dependency group or env flag so the core app runs with only Gemini + OpenCV + PaddleOCR.
 
 For more detail, see [docs/architecture.md](docs/architecture.md).
+
+## Pool CAD PoC (Streamlit)
+
+A separate **Proof of Concept** app demonstrates a 3-step pipeline: reference matching → dimension extraction & verification → CAD output. It lives in `poc/` and uses lighter dependencies.
+
+Run locally:
+
+```bash
+pip install -r requirements-poc.txt
+streamlit run poc/app_poc.py
+```
+
+To **deploy the PoC on Streamlit Community Cloud**, see **[docs/DEPLOY_STREAMLIT_POC.md](docs/DEPLOY_STREAMLIT_POC.md)** for step-by-step instructions (main file: `poc/app_poc.py`, requirements: `requirements-poc.txt`).

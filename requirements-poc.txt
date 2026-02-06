@@ -1,0 +1,22 @@
+# Requirements for the PoC Streamlit app (poc/app_poc.py)
+# Streamlit Cloud will install these automatically
+
+streamlit>=1.30.0
+Pillow>=10.0.0
+ezdxf>=1.4.0
+pydantic>=2.5.0
+python-dotenv>=1.0.0
+opencv-python-headless>=4.8.0
+google-genai>=0.4.0
+numpy>=1.24.0
+
+# Optional: better matching (CLIP + FAISS)
+# Uncomment if the deployment has enough memory (>1GB)
+# open-clip-torch>=2.20.0
+# faiss-cpu>=1.7.4
+# torch>=2.0.0
+
+# Optional: PaddleOCR (heavy dependency, ~500MB)
+# paddlepaddle>=2.5.0
+# paddleocr>=2.7.0
+# rapidfuzz>=3.0.0
