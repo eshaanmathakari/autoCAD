@@ -88,6 +88,54 @@ def verify_dimensions(
     return result
 
 
+def verify_bbox(
+    edges: list[PoolEdge],
+    target_length_inches: float,
+    target_width_inches: float,
+    tolerance_inches: float = 1.0,
+) -> VerificationResult:
+    """
+    Verify generated edges against target dimensions using bounding box.
+
+    Works for all pool types (rectangular, kidney, freeform, etc.)
+    by comparing the overall bounding box against target length/width.
+    """
+    result = VerificationResult()
+
+    if not edges:
+        return result
+
+    xs = [e.x1 for e in edges] + [e.x2 for e in edges]
+    ys = [e.y1 for e in edges] + [e.y2 for e in edges]
+    actual_length = max(xs) - min(xs)
+    actual_width = max(ys) - min(ys)
+
+    for label, expected, actual in [
+        ("Length", target_length_inches, actual_length),
+        ("Width", target_width_inches, actual_width),
+    ]:
+        error = abs(actual - expected)
+        passed = error <= tolerance_inches
+        check = DimensionCheck(
+            edge_index=-1,
+            expected_inches=expected,
+            actual_inches=round(actual, 2),
+            error_inches=round(error, 2),
+            passed=passed,
+            label=label,
+        )
+        result.checks.append(check)
+        result.total_checked += 1
+        if passed:
+            result.total_passed += 1
+        else:
+            result.total_failed += 1
+        result.max_error_inches = max(result.max_error_inches, error)
+
+    result.all_passed = result.total_failed == 0 and result.total_checked > 0
+    return result
+
+
 def verify_from_ocr_results(
     generated_edges: list[PoolEdge],
     ocr_dimensions: list[ImperialDimension],

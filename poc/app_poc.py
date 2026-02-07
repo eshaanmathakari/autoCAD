@@ -26,7 +26,7 @@ if hasattr(st, "secrets"):
 from poc.imperial_parser import parse as parse_imperial, ImperialDimension
 from poc.reference_matcher import ReferenceMatcher
 from poc.template_deformer import deform_to_dimensions
-from poc.dimension_checker import verify_dimensions
+from poc.dimension_checker import verify_bbox
 
 # ---------------------------------------------------------------------------
 # Config
@@ -179,21 +179,32 @@ def tab_dimension_extraction():
         # OCR button
         run_ocr = st.button("Run OCR Ensemble", disabled=st.session_state.input_image is None)
         if run_ocr and st.session_state.input_image is not None:
-            with st.spinner("Running OCR ensemble (PaddleOCR + Gemini)..."):
+            with st.spinner("Running OCR ensemble..."):
                 try:
                     from poc.ocr_ensemble import OCREnsemble
                     ensemble = OCREnsemble()
-                    results = ensemble.extract_dimensions(st.session_state.input_image)
-                    st.session_state.dimensions = [
-                        {
-                            "label": r.text,
-                            "inches": r.parsed.total_inches if r.parsed else 0,
-                            "confidence": r.confidence,
-                            "needs_review": r.needs_review,
-                        }
-                        for r in results
-                    ]
-                    st.write(f"Found **{len(results)}** dimensions via: {ensemble.available_engines}")
+                    engines = ensemble.available_engines
+                    if not engines:
+                        st.warning(
+                            "No OCR engines available. "
+                            "Configure `GOOGLE_API_KEY` in Streamlit secrets for Gemini Vision."
+                        )
+                    else:
+                        st.info(f"Engines: {', '.join(engines)}")
+                        results = ensemble.extract_dimensions(st.session_state.input_image)
+                        st.session_state.dimensions = [
+                            {
+                                "label": r.text,
+                                "inches": r.parsed.total_inches if r.parsed else 0,
+                                "confidence": r.confidence,
+                                "needs_review": r.needs_review,
+                            }
+                            for r in results
+                        ]
+                        if results:
+                            st.success(f"Found **{len(results)}** dimensions")
+                        else:
+                            st.warning("No dimensions found in image. Enter them manually below.")
                 except Exception as e:
                     st.error(f"OCR failed: {e}")
 
@@ -229,15 +240,11 @@ def tab_dimension_extraction():
                     )
                     st.session_state.deformation = result
 
-                    # Auto-verify (check both length and width)
-                    target_dims = {
-                        0: parsed_len.total_inches,
-                        1: parsed_wid.total_inches,
-                    }
-
-                    verification = verify_dimensions(
+                    # Auto-verify using bounding box (works for all pool types)
+                    verification = verify_bbox(
                         result.edges,
-                        target_dims,
+                        target_length_inches=parsed_len.total_inches,
+                        target_width_inches=parsed_wid.total_inches,
                         tolerance_inches=1.0,
                     )
                     st.session_state.verification = verification
@@ -267,8 +274,9 @@ def tab_dimension_extraction():
                     with st.expander("Dimension Checks"):
                         for check in vr.checks:
                             icon = "\u2705" if check.passed else "\u274C"
+                            label = check.label or f"Edge {check.edge_index}"
                             st.write(
-                                f"{icon} Edge {check.edge_index}: "
+                                f"{icon} {label}: "
                                 f"expected {check.expected_inches}\" "
                                 f"got {check.actual_inches}\" "
                                 f"(error: {check.error_inches}\")"

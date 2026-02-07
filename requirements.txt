@@ -6,7 +6,8 @@ pydantic>=2.5.0
 python-dotenv>=1.0.0
 opencv-python-headless>=4.8.0
 
-# Accuracy enhancements
-paddlepaddle>=2.5.0
-paddleocr>=2.7.0
-rapidfuzz>=3.0.0
+# Accuracy enhancements (commented out for Streamlit Cloud — too heavy, ~500MB+,
+# and paddleocr pulls in opencv-python which conflicts with headless variant)
+# paddlepaddle>=2.5.0
+# paddleocr>=2.7.0
+# rapidfuzz>=3.0.0

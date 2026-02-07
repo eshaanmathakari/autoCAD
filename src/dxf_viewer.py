@@ -549,8 +549,16 @@ def generate_viewer_html(dxf_bytes: bytes, height: int = 500) -> str:
             renderer.render(scene, camera);
         }}
 
-        // Initialize on load
-        init();
+        // Initialize on load — retry if container has zero dimensions (hidden tab)
+        function tryInit() {{
+            const c = document.getElementById('canvas-container');
+            if (c.clientWidth > 0 && c.clientHeight > 0) {{
+                init();
+            }} else {{
+                requestAnimationFrame(tryInit);
+            }}
+        }}
+        tryInit();
     </script>
 </body>
 </html>

@@ -76,5 +76,5 @@ cv.onmousedown=e=>{{dr=true;lx=e.clientX;ly=e.clientY;cv.style.cursor="grabbing"
 cv.onmousemove=e=>{{if(!dr)return;const s=(cam.right-cam.left)/cv.clientWidth;cam.left-=(e.clientX-lx)*s;cam.right-=(e.clientX-lx)*s;cam.top+=(e.clientY-ly)*s;cam.bottom+=(e.clientY-ly)*s;cam.updateProjectionMatrix();lx=e.clientX;ly=e.clientY}};
 cv.onmouseup=()=>{{dr=false;cv.style.cursor="grab"}};cv.onmouseleave=()=>{{dr=false}};cv.onmouseenter=()=>{{cv.style.cursor="grab"}};
 cv.addEventListener("wheel",e=>{{e.preventDefault();const f=e.deltaY>0?1.1:.9,r=cv.getBoundingClientRect(),mx=e.clientX-r.left,my=e.clientY-r.top;const wx=cam.left+(mx/cv.clientWidth)*(cam.right-cam.left),wy=cam.top-(my/cv.clientHeight)*(cam.top-cam.bottom);const nw=(cam.right-cam.left)*f,nh=(cam.top-cam.bottom)*f;const rx=(wx-cam.left)/(cam.right-cam.left),ry=(cam.top-wy)/(cam.top-cam.bottom);cam.left=wx-rx*nw;cam.right=cam.left+nw;cam.top=wy+ry*nh;cam.bottom=cam.top-nh;cam.updateProjectionMatrix()}},{{passive:false}})}}
-init();
+function tryInit(){{const c=document.getElementById("c");if(c.clientWidth>0&&c.clientHeight>0){{init()}}else{{requestAnimationFrame(tryInit)}}}}tryInit();
 </script></body></html>'''
