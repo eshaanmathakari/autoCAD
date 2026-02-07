@@ -16,7 +16,6 @@ from typing import Optional
 
 import ezdxf
 
-from poc.imperial_parser import ImperialDimension
 from poc.pool_dxf_generator import PoolEdge
 
 
@@ -116,6 +115,18 @@ def deform_to_dimensions(
         label = None
         if dimension_labels and str(i) in dimension_labels:
             label = dimension_labels[str(i)]
+        else:
+            # Auto-generate label from scaled edge length
+            edge_len = math.hypot(sx2 - sx1, sy2 - sy1)
+            if edge_len >= 6:  # Only label edges >= 6 inches
+                feet = int(edge_len // 12)
+                inches = round(edge_len % 12, 1)
+                if feet > 0 and inches > 0:
+                    label = f"{feet}'{inches:.0f}\""
+                elif feet > 0:
+                    label = f"{feet}'"
+                else:
+                    label = f'{inches:.0f}"'
         scaled_edges.append(PoolEdge(sx1, sy1, sx2, sy2, label=label))
 
     # Generate scaled DXF

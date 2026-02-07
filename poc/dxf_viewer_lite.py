@@ -1,13 +1,17 @@
 """
 Lightweight DXF viewer for Streamlit — self-contained, no src/ dependency.
-Uses Three.js + dxf-parser via CDN.
+Uses Three.js + dxf-parser inlined from vendor files (no CDN needed).
 """
 
 import base64
 
+from poc.viewer_deps import get_three_js, get_dxf_parser_js
+
 
 def generate_viewer_html(dxf_bytes: bytes, height: int = 500) -> str:
     dxf_b64 = base64.b64encode(dxf_bytes).decode("utf-8")
+    three_js = get_three_js()
+    dxf_parser_js = get_dxf_parser_js()
 
     return f'''<!DOCTYPE html>
 <html>
@@ -21,9 +25,10 @@ body{{overflow:hidden;font-family:sans-serif}}
 #ctrls button:hover{{background:rgba(106,106,138,.9)}}
 #ctrls button.on{{background:rgba(0,150,136,.9)}}
 #info{{position:absolute;bottom:8px;left:8px;color:#888;font:11px monospace;background:rgba(26,26,46,.8);padding:3px 6px;border-radius:3px}}
+#no-geom{{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#ff6b6b;font-size:14px;text-align:center;display:none}}
 </style>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/dxf-parser@1.1.2/dist/dxf-parser.min.js"></script>
+<script>{three_js}</script>
+<script>{dxf_parser_js}</script>
 </head>
 <body>
 <div id="c">
@@ -33,6 +38,7 @@ body{{overflow:hidden;font-family:sans-serif}}
   <button id="gb" class="on" onclick="togGrid()">Grid</button>
  </div>
  <div id="info">Loading...</div>
+ <div id="no-geom">No geometry found in DXF</div>
 </div>
 <script>
 const LC={{"POOL_OUTLINE":0x00ff88,"POOL_STAIRS":0x00ff00,"POOL_DIMENSIONS":0xff4444,"POOL_TEXT":0x00ffff,"POOL_BENCH":0xffff00,"POOL_EQUIPMENT":0x888888,"GEOMETRY":0x00ff88,"TEXT":0x88ff00,"DIMENSIONS":0xff4444,"0":0xffffff}};
@@ -42,7 +48,7 @@ let bnd={{x0:Infinity,x1:-Infinity,y0:Infinity,y1:-Infinity}};
 function ub(vs){{vs.forEach(v=>{{if(v.x!==undefined){{bnd.x0=Math.min(bnd.x0,v.x);bnd.x1=Math.max(bnd.x1,v.x);bnd.y0=Math.min(bnd.y0,v.y);bnd.y1=Math.max(bnd.y1,v.y);}}}})}}
 function lc(n){{return LC[n]||0x00ff88}}
 function init(){{
-try{{dxf=new DxfParser().parseSync(atob(b64))}}catch(e){{document.getElementById("info").textContent="Parse error";return}}
+try{{dxf=new DxfParser().parseSync(atob(b64))}}catch(e){{document.getElementById("info").textContent="Parse error: "+e.message;return}}
 const c=document.getElementById("c");
 scene=new THREE.Scene();scene.background=new THREE.Color(0x1a1a2e);
 const a=c.clientWidth/c.clientHeight;
@@ -56,6 +62,7 @@ else if((e.type==="LWPOLYLINE"||e.type==="POLYLINE")&&e.vertices&&e.vertices.len
 else if((e.type==="TEXT"||e.type==="MTEXT")&&(e.startPoint||e.position)){{const pos=e.startPoint||e.position;const h=e.textHeight||10,w=(e.text?.length||5)*h*.6;const p=[new THREE.Vector3(pos.x,pos.y,0),new THREE.Vector3(pos.x+w,pos.y,0),new THREE.Vector3(pos.x+w,pos.y+h,0),new THREE.Vector3(pos.x,pos.y+h,0),new THREE.Vector3(pos.x,pos.y,0)];m=new THREE.Line(new THREE.BufferGeometry().setFromPoints(p),new THREE.LineDashedMaterial({{color:col,dashSize:3,gapSize:2}}));m.computeLineDistances();ub([pos,{{x:pos.x+w,y:pos.y+h}}])}}
 if(m){{scene.add(m);eCnt++}}
 }});
+if(eCnt===0){{document.getElementById("no-geom").style.display="block"}}
 const gs=Math.max(bnd.x1-bnd.x0,bnd.y1-bnd.y0)*2||1000;
 grid=new THREE.GridHelper(gs,20,0x444466,0x333355);grid.rotation.x=Math.PI/2;
 grid.position.set((bnd.x0+bnd.x1)/2,(bnd.y0+bnd.y1)/2,-1);scene.add(grid);

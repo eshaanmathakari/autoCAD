@@ -10,6 +10,12 @@ Provides an interactive in-browser viewer for DXF files with:
 """
 
 import base64
+import os
+import sys
+
+# Add parent to path so poc.viewer_deps is importable
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+from poc.viewer_deps import get_three_js, get_dxf_parser_js
 
 
 def generate_viewer_html(dxf_bytes: bytes, height: int = 500) -> str:
@@ -25,6 +31,8 @@ def generate_viewer_html(dxf_bytes: bytes, height: int = 500) -> str:
     """
     # Base64 encode DXF for embedding
     dxf_b64 = base64.b64encode(dxf_bytes).decode('utf-8')
+    three_js = get_three_js()
+    dxf_parser_js = get_dxf_parser_js()
 
     return f'''
 <!DOCTYPE html>
@@ -108,8 +116,8 @@ def generate_viewer_html(dxf_bytes: bytes, height: int = 500) -> str:
             display: none;
         }}
     </style>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/dxf-parser@1.1.2/dist/dxf-parser.min.js"></script>
+    <script>{three_js}</script>
+    <script>{dxf_parser_js}</script>
 </head>
 <body>
     <div id="canvas-container">
@@ -149,6 +157,12 @@ def generate_viewer_html(dxf_bytes: bytes, height: int = 500) -> str:
             'HIDDEN': 0x666666,
             'CONSTRUCTION': 0xffff00,
             '0': 0xffffff,
+            'POOL_OUTLINE': 0x00ff88,
+            'POOL_STAIRS': 0x00ff00,
+            'POOL_DIMENSIONS': 0xff4444,
+            'POOL_TEXT': 0x00ffff,
+            'POOL_BENCH': 0xffff00,
+            'POOL_EQUIPMENT': 0x888888,
         }};
 
         // DXF content (base64 encoded)
@@ -213,6 +227,10 @@ def generate_viewer_html(dxf_bytes: bytes, height: int = 500) -> str:
             // Update info
             document.getElementById('info').textContent =
                 `Entities: ${{entityCount}} | Layers: ${{Object.keys(layerGroups).length}}`;
+
+            if (entityCount === 0) {{
+                showError('No geometry found in DXF');
+            }}
 
             // Build layer panel
             buildLayerPanel();

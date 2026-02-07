@@ -65,6 +65,9 @@ def get_matcher():
 # ---------------------------------------------------------------------------
 def show_dxf_viewer(dxf_bytes: bytes, height: int = 450):
     """Render the Three.js DXF viewer."""
+    if not dxf_bytes or len(dxf_bytes) < 100:
+        st.error("DXF generation failed — file is empty or too small. Check reference template.")
+        return
     try:
         # Try the main project viewer first, fall back to bundled one
         try:
@@ -226,9 +229,10 @@ def tab_dimension_extraction():
                     )
                     st.session_state.deformation = result
 
-                    # Auto-verify
+                    # Auto-verify (check both length and width)
                     target_dims = {
-                        0: parsed_len.total_inches,  # check overall width
+                        0: parsed_len.total_inches,
+                        1: parsed_wid.total_inches,
                     }
 
                     verification = verify_dimensions(
