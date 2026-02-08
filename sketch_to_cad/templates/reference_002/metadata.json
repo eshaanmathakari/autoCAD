@@ -1,0 +1,8 @@
+{
+  "name": "L-Shaped Pool",
+  "pool_type": "l_shaped",
+  "num_edges": 6,
+  "has_stairs": true,
+  "shallow_depth": "3'6\"",
+  "deep_depth": "8'"
+}

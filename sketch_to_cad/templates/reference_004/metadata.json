@@ -1,0 +1,8 @@
+{
+  "name": "Freeform Pool",
+  "pool_type": "freeform",
+  "num_edges": 10,
+  "has_stairs": true,
+  "shallow_depth": "3'6\"",
+  "deep_depth": "8'"
+}

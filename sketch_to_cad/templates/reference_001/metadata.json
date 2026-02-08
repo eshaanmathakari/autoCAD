@@ -1,0 +1,8 @@
+{
+  "name": "Rectangular Pool",
+  "pool_type": "rectangular",
+  "num_edges": 4,
+  "has_stairs": true,
+  "shallow_depth": "3'6\"",
+  "deep_depth": "8'"
+}
