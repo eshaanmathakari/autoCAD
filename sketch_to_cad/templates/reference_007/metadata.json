@@ -1,10 +1,10 @@
 {
-  "name": "Rectangular Pool",
+  "name": "Compact Rectangular Pool",
   "pool_type": "rectangular",
   "num_edges": 4,
   "has_stairs": true,
-  "length_inches": 240,
-  "width_inches": 120,
+  "length_inches": 216,
+  "width_inches": 108,
   "shallow_depth": "3'6\"",
   "deep_depth": "8'"
 }

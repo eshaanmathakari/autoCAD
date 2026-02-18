@@ -1,10 +1,10 @@
 {
-  "name": "Freeform Pool",
-  "pool_type": "freeform",
-  "num_edges": 10,
+  "name": "Lazy-L Sport Pool",
+  "pool_type": "lazy_l",
+  "num_edges": 6,
   "has_stairs": true,
   "length_inches": 336,
-  "width_inches": 192,
+  "width_inches": 186,
   "shallow_depth": "3'6\"",
   "deep_depth": "8'"
 }

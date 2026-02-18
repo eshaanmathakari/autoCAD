@@ -1,10 +1,10 @@
 {
-  "name": "Kidney Pool",
+  "name": "Kidney Pool Wide",
   "pool_type": "kidney",
-  "num_edges": 40,
+  "num_edges": 44,
   "has_stairs": false,
-  "length_inches": 360.0,
-  "width_inches": 187.1,
+  "length_inches": 312.0,
+  "width_inches": 174.8,
   "shallow_depth": "3'6\"",
   "deep_depth": "8'"
 }

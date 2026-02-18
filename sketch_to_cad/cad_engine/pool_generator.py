@@ -252,10 +252,72 @@ def make_rectangular_with_spa(
     )
 
 
+def make_oval_pool(
+    length: float = 324,
+    width: float = 156,
+    segments: int = 36,
+    name: str = "Oval Pool",
+) -> PoolSpec:
+    """Oval pool approximated with a polyline."""
+    edges = []
+    rx = length / 2
+    ry = width / 2
+    cx = rx
+    cy = ry
+    for i in range(segments):
+        t0 = 2 * math.pi * i / segments
+        t1 = 2 * math.pi * (i + 1) / segments
+        x0 = cx + rx * math.cos(t0)
+        y0 = cy + ry * math.sin(t0)
+        x1 = cx + rx * math.cos(t1)
+        y1 = cy + ry * math.sin(t1)
+        label = None
+        if i == 0:
+            label = f"{length/12:.0f}'"
+        elif i == segments // 4:
+            label = f"{width/12:.0f}'"
+        edges.append(PoolEdge(x0, y0, x1, y1, label=label))
+    stairs = [StairSpec(x=cx - 24, y=width, width=48, depth=30, num_treads=3)]
+    return PoolSpec(name=name, pool_type="oval", edges=edges, stairs=stairs)
+
+
+def make_lazy_l_pool(name: str = "Lazy-L Pool") -> PoolSpec:
+    """Lazy-L variant with broad shallow end."""
+    edges = [
+        PoolEdge(0, 0, 336, 0, label="28'"),
+        PoolEdge(336, 0, 336, 90, label="7'6\""),
+        PoolEdge(336, 90, 210, 90, label="10'6\""),
+        PoolEdge(210, 90, 210, 186, label="8'"),
+        PoolEdge(210, 186, 0, 186, label="17'6\""),
+        PoolEdge(0, 186, 0, 0, label="15'6\""),
+    ]
+    stairs = [StairSpec(x=0, y=186, width=54, depth=36, num_treads=3)]
+    return PoolSpec(name=name, pool_type="lazy_l", edges=edges, stairs=stairs)
+
+
 SAMPLE_POOLS = {
     "reference_001": make_rectangular_pool,
     "reference_002": make_l_shaped_pool,
     "reference_003": make_kidney_pool,
     "reference_004": make_freeform_pool,
     "reference_005": make_rectangular_with_spa,
+    "reference_006": lambda: make_rectangular_pool(
+        length=336, width=168, name="Rectangular Lap Pool"
+    ),
+    "reference_007": lambda: make_rectangular_pool(
+        length=216, width=108, name="Compact Rectangular Pool"
+    ),
+    "reference_008": lambda: make_l_shaped_pool(
+        long_len=336, long_width=156, short_len=156, short_width=96, name="Large L-Shaped Pool"
+    ),
+    "reference_009": lambda: make_kidney_pool(
+        length=312, width=168, segments=44, name="Kidney Pool Wide"
+    ),
+    "reference_010": lambda: make_rectangular_with_spa(
+        pool_len=276, pool_width=132, spa_diam=84, name="Pool with Large Spa"
+    ),
+    "reference_011": lambda: make_oval_pool(
+        length=324, width=156, segments=40, name="Oval Family Pool"
+    ),
+    "reference_012": lambda: make_lazy_l_pool(name="Lazy-L Sport Pool"),
 }

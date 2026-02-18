@@ -1,10 +1,10 @@
 {
-  "name": "Rectangular Pool",
+  "name": "Rectangular Lap Pool",
   "pool_type": "rectangular",
   "num_edges": 4,
   "has_stairs": true,
-  "length_inches": 240,
-  "width_inches": 120,
+  "length_inches": 336,
+  "width_inches": 168,
   "shallow_depth": "3'6\"",
   "deep_depth": "8'"
 }
