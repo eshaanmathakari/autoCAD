@@ -1,5 +1,5 @@
 """
-Step 5 — Download: DXF & JSON downloads, feedback form, session summary.
+Step 4 — Download: DXF and JSON downloads, feedback form, session summary.
 """
 
 from __future__ import annotations
@@ -23,12 +23,12 @@ except ImportError:
 
 
 def render_download(feedback_store: "FeedbackStore | None" = None):
-    """Render the Download & Feedback screen (wizard step 5)."""
-    st.header("Step 5 — Download & Feedback")
+    """Render the Download screen (wizard step 4)."""
+    st.header("Step 4 — Download")
 
     final_dxf = st.session_state.get("final_dxf")
     if final_dxf is None:
-        st.warning("Please complete Step 4 first — approve the generated CAD.")
+        st.warning("Complete Step 3 to generate output files.")
         return
 
     ref = st.session_state.get("selected_ref")
@@ -70,30 +70,21 @@ def render_download(feedback_store: "FeedbackStore | None" = None):
                 f"converged: {'Yes' if sandbox_result.converged else 'No'}"
             )
 
-        # Verification status
         verification = st.session_state.get("verification")
         if verification:
-            if verification.all_passed:
-                st.success(
-                    f"Verified: {verification.total_passed}/"
-                    f"{verification.total_checked} dimensions OK"
-                )
-            else:
-                st.warning(
-                    f"Verified: {verification.total_passed}/"
-                    f"{verification.total_checked} dimensions OK"
-                )
+            st.caption(
+                f"Verification: {verification.total_passed}/"
+                f"{verification.total_checked} dimensions passed"
+            )
 
-        # Pipeline summary
         st.markdown("---")
         st.markdown(
             """
             **Pipeline Steps Completed:**
-            1. Reference Match — found closest pool template
-            2. Dimension Extraction — parsed imperial measurements
-            3. Template Deformation — scaled reference to target dims
-            4. Verification — checked generated vs target dimensions
-            5. Output — professional DXF with pool layers
+            1. Reference Match
+            2. Dimension Extraction
+            3. Template Deformation and Verification
+            4. Output (DXF with pool layers)
             """
         )
 
@@ -145,7 +136,7 @@ def render_download(feedback_store: "FeedbackStore | None" = None):
         st.subheader("Feedback")
 
         if st.session_state.get("feedback_submitted"):
-            st.success("Thank you for your feedback!")
+            st.info("Feedback submitted.")
         else:
             accuracy_rating = st.slider(
                 "Accuracy Rating",

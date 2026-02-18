@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 
 # ---------------------------------------------------------------------------
-# Part 1 imports — wrapped in try/except for independent development
+# Part 1 imports
 # ---------------------------------------------------------------------------
 _PART1_AVAILABLE = True
 try:
@@ -24,16 +24,15 @@ except ImportError:
 
 
 def _get_matcher():
-    """Return a cached ReferenceMatcher (heavy: loads embeddings)."""
+    """Return a cached ReferenceMatcher (loads embeddings once)."""
     if not _PART1_AVAILABLE:
         return None
 
-    @st.cache_resource(show_spinner="Loading reference library & embeddings...")
+    @st.cache_resource(show_spinner="Loading reference library...")
     def _init():
         sample_dir = os.path.join(
             os.path.dirname(os.path.dirname(__file__)), "templates"
         )
-        # Fall back to poc/sample_data if templates/ doesn't exist yet
         if not os.path.isdir(sample_dir):
             sample_dir = os.path.join(
                 os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
@@ -49,18 +48,17 @@ def render_matching(feedback_store: "FeedbackStore | None" = None):
     """Render the Reference Matching screen (wizard step 2)."""
     st.header("Step 2 — Reference Matching")
     st.markdown(
-        "We'll find the closest matching reference pool templates from the "
-        "library using image embeddings."
+        "Find the closest matching reference pool template from the library."
     )
 
     if st.session_state.get("input_image") is None:
-        st.warning("Please complete Step 1 first — upload a sketch.")
+        st.warning("Complete Step 1 first.")
         return
 
     if not _PART1_AVAILABLE:
         st.error(
             "Matching module not available. Ensure the core pipeline "
-            "(Part 1) is installed under `sketch_to_cad.matching`."
+            "is installed under sketch_to_cad.matching."
         )
         return
 
@@ -70,20 +68,40 @@ def render_matching(feedback_store: "FeedbackStore | None" = None):
         return
 
     st.caption(
-        f"Backend: **{matcher.backend}** | "
-        f"References: **{matcher.num_references}**"
+        f"Backend: {matcher.backend}  |  "
+        f"References: {matcher.num_references}"
     )
+
+    # Display fingerprint summary if available
+    fp = st.session_state.get("drawing_fingerprint")
+    if fp:
+        fp_parts = []
+        if fp.get("pool_type"):
+            fp_parts.append(f"Type: {fp['pool_type']}")
+        if fp.get("length_inches") and fp.get("width_inches"):
+            fp_parts.append(
+                f"Dimensions: {fp['length_inches']:.0f}\" x {fp['width_inches']:.0f}\""
+            )
+        if fp.get("has_stairs") is not None:
+            fp_parts.append(f"Stairs: {'Yes' if fp['has_stairs'] else 'No'}")
+        if fp_parts:
+            st.info("Fingerprint: " + "  |  ".join(fp_parts))
 
     # --- Run matching ---
     if st.button("Find Matches", type="primary"):
-        with st.spinner("Computing embeddings & matching..."):
-            results = matcher.match(st.session_state.input_image, top_k=5)
+        with st.spinner("Computing similarity..."):
+            if fp and hasattr(matcher, "match_with_fingerprint"):
+                results = matcher.match_with_fingerprint(
+                    st.session_state.input_image, fp, top_k=5
+                )
+            else:
+                results = matcher.match(st.session_state.input_image, top_k=5)
             st.session_state.match_results = results
 
     # --- Display results ---
     results = st.session_state.get("match_results", [])
     if not results:
-        st.info("Click **Find Matches** to search the reference library.")
+        st.info("Press Find Matches to search the reference library.")
         return
 
     st.subheader("Top Matches")
@@ -96,21 +114,20 @@ def render_matching(feedback_store: "FeedbackStore | None" = None):
             if os.path.exists(ref.line_drawing_path):
                 st.image(
                     ref.line_drawing_path,
-                    caption=f"#{mr.rank} — {meta.get('name', ref.folder_id)}",
-                    use_container_width=True,
+                    caption=f"#{mr.rank} - {meta.get('name', ref.folder_id)}",
+                    width="stretch",
                 )
 
         with col_info:
-            st.metric("Match Score", f"{mr.score:.4f}")
-            st.write(f"**Type:** {meta.get('pool_type', 'unknown')}")
+            st.metric("Score", f"{mr.score:.4f}")
+            st.write(f"Type: {meta.get('pool_type', 'unknown')}")
             st.write(
-                f"**Stairs:** {'Yes' if meta.get('has_stairs') else 'No'}"
+                f"Stairs: {'Yes' if meta.get('has_stairs') else 'No'}"
             )
 
-            if st.button("Select this match", key=f"sel_{ref.folder_id}"):
+            if st.button("Select", key=f"sel_{ref.folder_id}"):
                 st.session_state.selected_ref = ref
 
-                # Log to feedback store
                 session_id = st.session_state.get("session_id")
                 if feedback_store and session_id:
                     feedback_store.log_match_selection(
@@ -120,7 +137,6 @@ def render_matching(feedback_store: "FeedbackStore | None" = None):
                         score=mr.score,
                         action="accept",
                     )
-                    # Log skipped matches as rejections
                     for other in results:
                         if other.reference.folder_id != ref.folder_id:
                             feedback_store.log_match_selection(

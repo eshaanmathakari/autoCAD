@@ -2,18 +2,18 @@
 Confidence-based routing for OCR and matching results.
 
 Routes each result to one of three tracks:
-  - auto_accept  (confidence > high threshold)  — log silently
-  - review       (between thresholds)           — show with "Confirm?" prompt
-  - manual       (below low threshold)          — require manual entry
+  - auto_accept  (confidence > high threshold)
+  - review       (between thresholds)
+  - manual       (below low threshold)
 
-Provides colour helpers for the Streamlit UI traffic-light indicators.
+Provides UI helpers for confidence display.
 """
 
 from __future__ import annotations
 
 
 class ConfidenceRouter:
-    """Threshold-based confidence router with UI colour helpers."""
+    """Threshold-based confidence router with UI helpers."""
 
     def __init__(
         self,
@@ -62,21 +62,21 @@ class ConfidenceRouter:
         }[track]
 
     def get_indicator_emoji(self, confidence: float) -> str:
-        """Return a status emoji for inline display."""
+        """Return a plain text indicator for display."""
         track = self.route(confidence)
         return {
-            "auto_accept": "\u2705",   # green check
-            "review": "\U0001F7E1",     # yellow circle
-            "manual": "\U0001F534",     # red circle
+            "auto_accept": "[OK]",
+            "review": "[Review]",
+            "manual": "[Manual]",
         }[track]
 
     def get_label(self, confidence: float) -> str:
-        """Human-readable label for the confidence track."""
+        """Label for the confidence track."""
         track = self.route(confidence)
         return {
-            "auto_accept": "High Confidence",
-            "review": "Needs Review",
-            "manual": "Manual Entry Required",
+            "auto_accept": "High",
+            "review": "Review",
+            "manual": "Manual",
         }[track]
 
     def __repr__(self) -> str:

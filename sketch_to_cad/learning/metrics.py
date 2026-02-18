@@ -60,7 +60,7 @@ def render_sidebar_metrics(feedback_store: "FeedbackStore"):
             st.markdown("**Top Learned Corrections**")
             for c in corrections:
                 st.caption(
-                    f'`{c["raw"]}` \u2192 `{c["corrected"]}` ({c["count"]}x)'
+                    f'`{c["raw"]}` -> `{c["corrected"]}` ({c["count"]}x)'
                 )
 
 

@@ -3,6 +3,8 @@
   "pool_type": "kidney",
   "num_edges": 40,
   "has_stairs": false,
+  "length_inches": 360.0,
+  "width_inches": 180.0,
   "shallow_depth": "3'6\"",
   "deep_depth": "8'"
 }

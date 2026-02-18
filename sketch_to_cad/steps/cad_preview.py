@@ -274,7 +274,7 @@ def render_cad_preview(feedback_store: "FeedbackStore | None" = None):
                 st.image(
                     st.session_state.input_image,
                     caption="Uploaded Sketch",
-                    use_container_width=True,
+                    width="stretch",
                 )
         with col_cad:
             st.subheader("Generated CAD")
@@ -291,7 +291,7 @@ def render_cad_preview(feedback_store: "FeedbackStore | None" = None):
                         st.image(
                             comp_result.overlay_image,
                             caption="Overlay: Sketch vs CAD",
-                            use_container_width=True,
+                            width="stretch",
                         )
                     if hasattr(comp_result, "ssim_score"):
                         st.metric("SSIM Score", f"{comp_result.ssim_score:.4f}")

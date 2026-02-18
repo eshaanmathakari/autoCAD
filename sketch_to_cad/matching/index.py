@@ -4,10 +4,14 @@ Reference matching engine.
 Uses CLIP embeddings + FAISS for similarity search across the
 reference pool library. Falls back to structural (OpenCV)
 features when CLIP is not installed.
+
+Supports fingerprint-based re-ranking when a drawing fingerprint
+(pool type, dimensions) is available.
 """
 
 import json
 import logging
+import math
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
@@ -163,6 +167,98 @@ class ReferenceMatcher:
                 )
                 for rank, idx in enumerate(top_idx)
             ]
+
+    # ------------------------------------------------------------------
+    # Fingerprint-enhanced matching
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _fingerprint_score(fingerprint: dict, ref_meta: dict) -> float:
+        """Compute a 0-1 similarity score between a drawing fingerprint and
+        a reference's metadata.
+
+        Components (equal weight):
+          - pool_type  : 1.0 if exact match, 0.0 otherwise
+          - has_stairs  : 1.0 if match, 0.0 otherwise
+          - dimensions  : exp(-k * relative_error) for length and width
+        """
+        scores = []
+        weights = []
+
+        # Pool type
+        fp_type = (fingerprint.get("pool_type") or "").strip().lower()
+        ref_type = (ref_meta.get("pool_type") or "").strip().lower()
+        if fp_type and ref_type:
+            scores.append(1.0 if fp_type == ref_type else 0.0)
+            weights.append(1.0)
+
+        # Stairs
+        fp_stairs = fingerprint.get("has_stairs")
+        ref_stairs = ref_meta.get("has_stairs")
+        if fp_stairs is not None and ref_stairs is not None:
+            scores.append(1.0 if bool(fp_stairs) == bool(ref_stairs) else 0.0)
+            weights.append(0.3)
+
+        # Dimension proximity
+        fp_len = fingerprint.get("length_inches")
+        fp_wid = fingerprint.get("width_inches")
+        ref_len = ref_meta.get("length_inches")
+        ref_wid = ref_meta.get("width_inches")
+
+        if fp_len and ref_len and fp_len > 0 and ref_len > 0:
+            rel_err = abs(fp_len - ref_len) / max(fp_len, ref_len)
+            scores.append(math.exp(-3.0 * rel_err))
+            weights.append(1.5)
+
+        if fp_wid and ref_wid and fp_wid > 0 and ref_wid > 0:
+            rel_err = abs(fp_wid - ref_wid) / max(fp_wid, ref_wid)
+            scores.append(math.exp(-3.0 * rel_err))
+            weights.append(1.5)
+
+        if not weights:
+            return 0.0
+        return sum(s * w for s, w in zip(scores, weights)) / sum(weights)
+
+    def match_with_fingerprint(
+        self,
+        input_image: Image.Image,
+        fingerprint: dict,
+        top_k: int = 5,
+        alpha: float = 0.5,
+    ) -> list[MatchResult]:
+        """Match using both image similarity and fingerprint metadata.
+
+        Args:
+            input_image: The uploaded pool sketch.
+            fingerprint: Drawing fingerprint dict (pool_type, dimensions, etc.).
+            top_k: Number of results to return.
+            alpha: Weight for image score (1-alpha for fingerprint score).
+
+        Returns:
+            List of MatchResult sorted by fused score.
+        """
+        # Get a broader set of image-based candidates
+        candidates = self.match(input_image, top_k=max(top_k * 3, len(self.references)))
+        if not candidates:
+            return []
+
+        fused = []
+        for mr in candidates:
+            img_score = mr.score
+            fp_score = self._fingerprint_score(fingerprint, mr.reference.metadata)
+            combined = alpha * img_score + (1.0 - alpha) * fp_score
+            fused.append((mr, combined))
+
+        fused.sort(key=lambda x: x[1], reverse=True)
+
+        return [
+            MatchResult(
+                reference=mr.reference,
+                score=round(combined, 6),
+                rank=rank + 1,
+            )
+            for rank, (mr, combined) in enumerate(fused[:top_k])
+        ]
 
     @property
     def backend(self) -> str:

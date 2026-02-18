@@ -3,6 +3,8 @@
   "pool_type": "l_shaped",
   "num_edges": 6,
   "has_stairs": true,
+  "length_inches": 300.0,
+  "width_inches": 144.0,
   "shallow_depth": "3'6\"",
   "deep_depth": "8'"
 }

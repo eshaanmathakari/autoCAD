@@ -3,6 +3,8 @@
   "pool_type": "rectangular",
   "num_edges": 4,
   "has_stairs": true,
+  "length_inches": 240.0,
+  "width_inches": 120.0,
   "shallow_depth": "3'6\"",
   "deep_depth": "8'"
 }

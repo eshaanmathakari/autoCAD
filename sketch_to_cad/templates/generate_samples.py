@@ -75,6 +75,15 @@ def render_pool_png(spec: PoolSpec, path: str, dpi: int = 150) -> str:
     return path
 
 
+def _compute_bbox_dimensions(spec: PoolSpec) -> tuple[float, float]:
+    """Compute bounding-box length (x-extent) and width (y-extent) in inches."""
+    if not spec.edges:
+        return (0.0, 0.0)
+    xs = [e.x1 for e in spec.edges] + [e.x2 for e in spec.edges]
+    ys = [e.y1 for e in spec.edges] + [e.y2 for e in spec.edges]
+    return (max(xs) - min(xs), max(ys) - min(ys))
+
+
 def generate_all():
     """Generate all sample reference data."""
     for folder_name, make_fn in SAMPLE_POOLS.items():
@@ -89,11 +98,15 @@ def generate_all():
         png_path = os.path.join(folder, "line_drawing.png")
         render_pool_png(spec, png_path)
 
+        length_inches, width_inches = _compute_bbox_dimensions(spec)
+
         meta = {
             "name": spec.name,
             "pool_type": spec.pool_type,
             "num_edges": len(spec.edges),
             "has_stairs": len(spec.stairs) > 0,
+            "length_inches": round(length_inches, 1),
+            "width_inches": round(width_inches, 1),
             "shallow_depth": spec.shallow_depth,
             "deep_depth": spec.deep_depth,
         }
@@ -101,7 +114,8 @@ def generate_all():
         with open(meta_path, "w") as f:
             json.dump(meta, f, indent=2)
 
-        print(f"  {folder_name}: {spec.name} ({spec.pool_type})")
+        print(f"  {folder_name}: {spec.name} ({spec.pool_type}) "
+              f"[{length_inches:.0f}\" x {width_inches:.0f}\"]")
 
     print(f"\nGenerated {len(SAMPLE_POOLS)} reference pools in {SAMPLE_DIR}")
 

@@ -1,31 +1,36 @@
 """
-Swimming Pool Sketch-to-CAD — 5-Screen Wizard UI
+Swimming Pool Sketch-to-CAD — 4-Step Wizard UI
 
-Replaces the 3-tab PoC with a sequential wizard:
-  Screen 1 — Upload
-  Screen 2 — Reference Matching
-  Screen 3 — Dimension Verification
-  Screen 4 — CAD Preview & Verification
-  Screen 5 — Download & Feedback
+Sequential wizard:
+  Step 1 — Upload
+  Step 2 — Reference Matching
+  Step 3 — Dimension Verification (generates DXF on approval)
+  Step 4 — Download & Feedback
 
-Imports pipeline logic from sketch_to_cad.* (Part 1) and orchestrates
+Imports pipeline logic from sketch_to_cad.* and orchestrates
 the recursive learning system from sketch_to_cad.learning.*.
 """
 
 import os
 import sys
-import uuid
+
+# Avoid OpenMP duplicate-library crash on macOS when using CLIP/PyTorch
+os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
 
 import streamlit as st
+from streamlit.errors import StreamlitSecretNotFoundError
 
 # Ensure the project root is importable
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-# Load Streamlit Cloud secrets into env if available
-if hasattr(st, "secrets"):
-    for key in ("GOOGLE_API_KEY", "GEMINI_MODEL"):
-        if key in st.secrets:
-            os.environ.setdefault(key, st.secrets[key])
+# Load Streamlit Cloud secrets into env if available (no-op when no secrets file)
+try:
+    if hasattr(st, "secrets"):
+        for key in ("GOOGLE_API_KEY", "GEMINI_MODEL"):
+            if key in st.secrets:
+                os.environ.setdefault(key, st.secrets[key])
+except StreamlitSecretNotFoundError:
+    pass
 
 # ---------------------------------------------------------------------------
 # Learning system (always available — no Part 1 dependency)
@@ -39,7 +44,6 @@ from sketch_to_cad.learning.metrics import render_sidebar_metrics
 from sketch_to_cad.steps.upload import render_upload
 from sketch_to_cad.steps.matching import render_matching
 from sketch_to_cad.steps.verification import render_verification
-from sketch_to_cad.steps.cad_preview import render_cad_preview
 from sketch_to_cad.steps.download import render_download
 
 # ---------------------------------------------------------------------------
@@ -48,7 +52,6 @@ from sketch_to_cad.steps.download import render_download
 st.set_page_config(
     page_title="Pool Sketch-to-CAD",
     layout="wide",
-    page_icon="\U0001F3CA",
 )
 
 # ---------------------------------------------------------------------------
@@ -79,6 +82,7 @@ DEFAULTS = {
     "current_step": 1,
     "session_id": None,
     "input_image": None,
+    "drawing_fingerprint": None,
     "match_results": [],
     "selected_ref": None,
     "ocr_results": [],
@@ -105,47 +109,43 @@ STEP_LABELS = [
     "1. Upload",
     "2. Match",
     "3. Dimensions",
-    "4. CAD Preview",
-    "5. Download",
+    "4. Download",
 ]
 
 
 def render_progress_bar():
-    """Render the 5-step progress indicator across the top."""
+    """Render the 4-step progress indicator across the top."""
     current = st.session_state.current_step
     cols = st.columns(len(STEP_LABELS))
     for i, (col, label) in enumerate(zip(cols, STEP_LABELS)):
         step_num = i + 1
         with col:
             if step_num < current:
-                # Completed
                 st.markdown(
                     f"<div style='text-align:center; padding:8px; "
-                    f"background-color:#1b5e20; border-radius:8px; "
-                    f"color:#a5d6a7; font-weight:bold;'>"
-                    f"\u2705 {label}</div>",
+                    f"background-color:#4a4a4a; border-radius:8px; "
+                    f"color:#e0e0e0; font-weight:bold;'>"
+                    f"{label}</div>",
                     unsafe_allow_html=True,
                 )
             elif step_num == current:
-                # Active
                 st.markdown(
                     f"<div style='text-align:center; padding:8px; "
-                    f"background-color:#00838f; border-radius:8px; "
+                    f"background-color:#2d2d2d; border-radius:8px; "
                     f"color:#ffffff; font-weight:bold; "
-                    f"border:2px solid #00bcd4;'>"
-                    f"\u25B6 {label}</div>",
+                    f"border:2px solid #757575;'>"
+                    f"{label}</div>",
                     unsafe_allow_html=True,
                 )
             else:
-                # Pending
                 st.markdown(
                     f"<div style='text-align:center; padding:8px; "
-                    f"background-color:#263238; border-radius:8px; "
-                    f"color:#78909c;'>"
-                    f"\u26AA {label}</div>",
+                    f"background-color:#e8e8e8; border-radius:8px; "
+                    f"color:#737373;'>"
+                    f"{label}</div>",
                     unsafe_allow_html=True,
                 )
-    st.markdown("")  # spacer
+    st.markdown("")
 
 
 # ---------------------------------------------------------------------------
@@ -162,29 +162,24 @@ def render_sidebar():
             ("1. Upload", step >= 1, st.session_state.input_image is not None),
             ("2. Reference Match", step >= 2, st.session_state.selected_ref is not None),
             ("3. Dimensions", step >= 3, st.session_state.approved_dimensions is not None),
-            ("4. CAD Preview", step >= 4, st.session_state.final_dxf is not None),
-            ("5. Download", step >= 5, st.session_state.feedback_submitted),
+            ("4. Download", step >= 4, st.session_state.feedback_submitted),
         ]
         for label, active, done in status_items:
             if done:
-                st.write(f"\u2705 {label}")
+                st.write(f"[Done] {label}")
             elif active:
-                st.write(f"\U0001F7E1 {label}")
+                st.write(f"[Active] {label}")
             else:
-                st.write(f"\u26AA {label}")
+                st.write(f"[  --  ] {label}")
 
         st.divider()
 
-        # Reset button
         if st.button("Reset Pipeline"):
-            old_session = st.session_state.session_id
             for k, v in DEFAULTS.items():
                 st.session_state[k] = v
-            # Create a fresh session
             st.session_state.session_id = fb.create_session()
             st.rerun()
 
-        # Learning dashboard
         render_sidebar_metrics(fb)
 
 
@@ -192,21 +187,16 @@ def render_sidebar():
 # Main
 # ---------------------------------------------------------------------------
 def main():
-    st.title("\U0001F3CA Swimming Pool Sketch-to-CAD")
-    st.caption(
-        "5-step wizard: Upload \u2192 Match \u2192 Dimensions \u2192 "
-        "CAD Preview \u2192 Download"
-    )
+    st.title("Pool Sketch-to-CAD")
+    st.caption("Upload | Match | Dimensions | Download")
 
     render_progress_bar()
     render_sidebar()
 
-    # Get shared resources
     fb = get_feedback_store()
     cd = get_correction_dict(fb)
     cr = get_confidence_router()
 
-    # Route to current step
     step = st.session_state.current_step
 
     if step == 1:
@@ -220,8 +210,6 @@ def main():
             confidence_router=cr,
         )
     elif step == 4:
-        render_cad_preview(feedback_store=fb)
-    elif step == 5:
         render_download(feedback_store=fb)
     else:
         st.error(f"Unknown step: {step}")
