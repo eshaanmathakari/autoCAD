@@ -1,5 +1,5 @@
 """
-Step 2 — Reference Matching: display top-5 matches, select gate, feedback logging.
+Step 2 — Reference Matching: display top matches, selection, feedback logging.
 """
 
 from __future__ import annotations
@@ -71,6 +71,17 @@ def render_matching(feedback_store: "FeedbackStore | None" = None):
         f"Backend: {matcher.backend}  |  "
         f"References: {matcher.num_references}"
     )
+    type_counts = getattr(matcher, "reference_type_counts", {})
+    if type_counts:
+        histogram = ", ".join(
+            f"{pool_type}: {count}" for pool_type, count in sorted(type_counts.items())
+        )
+        st.caption(f"Reference types: {histogram}")
+    if matcher.num_references <= 5:
+        st.warning(
+            "Reference library is very small. Upload/ingest additional references "
+            "for better matching quality."
+        )
 
     # Display fingerprint summary if available
     fp = st.session_state.get("drawing_fingerprint")
@@ -92,10 +103,10 @@ def render_matching(feedback_store: "FeedbackStore | None" = None):
         with st.spinner("Computing similarity..."):
             if fp and hasattr(matcher, "match_with_fingerprint"):
                 results = matcher.match_with_fingerprint(
-                    st.session_state.input_image, fp, top_k=5
+                    st.session_state.input_image, fp, top_k=3
                 )
             else:
-                results = matcher.match(st.session_state.input_image, top_k=5)
+                results = matcher.match(st.session_state.input_image, top_k=3)
             st.session_state.match_results = results
 
     # --- Display results ---
@@ -104,7 +115,18 @@ def render_matching(feedback_store: "FeedbackStore | None" = None):
         st.info("Press Find Matches to search the reference library.")
         return
 
-    st.subheader("Top Matches")
+    if fp and getattr(matcher, "last_filter_applied", False):
+        if getattr(matcher, "last_filter_fallback", False):
+            predicted = getattr(matcher, "last_predicted_type", None) or "unknown"
+            st.warning(
+                f"No references matched predicted type '{predicted}'. "
+                "Showing closest matches from all types."
+            )
+        else:
+            predicted = getattr(matcher, "last_predicted_type", None) or "unknown"
+            st.info(f"Strict type filter applied: {predicted}")
+
+    st.subheader(f"Top matches ({len(results)})")
     for mr in results:
         ref = mr.reference
         meta = ref.metadata

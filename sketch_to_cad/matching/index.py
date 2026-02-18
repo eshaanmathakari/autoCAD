@@ -57,6 +57,9 @@ class ReferenceMatcher:
         self.references: list[ReferencePool] = []
         self.index = None
         self.embeddings: Optional[np.ndarray] = None
+        self.last_filter_applied = False
+        self.last_filter_fallback = False
+        self.last_predicted_type: Optional[str] = None
 
         self._clip = CLIPEmbedder()
         self._structural = StructuralEmbedder()
@@ -64,6 +67,13 @@ class ReferenceMatcher:
 
         self._load_references()
         self._build_index()
+
+    @staticmethod
+    def _normalize_pool_type(value: Optional[str]) -> str:
+        """Normalize pool type labels for consistent matching."""
+        if not value:
+            return ""
+        return str(value).strip().lower().replace("-", "_").replace(" ", "_")
 
     def _load_references(self):
         """Scan template folders and load metadata."""
@@ -237,10 +247,25 @@ class ReferenceMatcher:
         Returns:
             List of MatchResult sorted by fused score.
         """
-        # Get a broader set of image-based candidates
-        candidates = self.match(input_image, top_k=max(top_k * 3, len(self.references)))
+        # Start from the full image-ranked list so hard filtering has enough candidates.
+        candidates = self.match(input_image, top_k=max(len(self.references), top_k * 3))
         if not candidates:
             return []
+
+        # Hard-filter by predicted pool type. If none match, keep all and expose fallback flag.
+        predicted_type = self._normalize_pool_type(fingerprint.get("pool_type"))
+        self.last_predicted_type = predicted_type or None
+        self.last_filter_applied = bool(predicted_type)
+        self.last_filter_fallback = False
+        if predicted_type:
+            filtered = [
+                mr for mr in candidates
+                if self._normalize_pool_type(mr.reference.metadata.get("pool_type")) == predicted_type
+            ]
+            if filtered:
+                candidates = filtered
+            else:
+                self.last_filter_fallback = True
 
         fused = []
         for mr in candidates:
@@ -267,3 +292,12 @@ class ReferenceMatcher:
     @property
     def num_references(self) -> int:
         return len(self.references)
+
+    @property
+    def reference_type_counts(self) -> dict[str, int]:
+        """Return a type histogram for loaded references."""
+        counts: dict[str, int] = {}
+        for ref in self.references:
+            key = self._normalize_pool_type(ref.metadata.get("pool_type")) or "unknown"
+            counts[key] = counts.get(key, 0) + 1
+        return counts

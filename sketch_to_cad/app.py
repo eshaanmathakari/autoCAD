@@ -38,7 +38,6 @@ except StreamlitSecretNotFoundError:
 from sketch_to_cad.learning.feedback_store import FeedbackStore
 from sketch_to_cad.learning.correction_dict import CorrectionDict
 from sketch_to_cad.learning.confidence_router import ConfidenceRouter
-from sketch_to_cad.learning.metrics import render_sidebar_metrics
 
 # Step renderers
 from sketch_to_cad.steps.upload import render_upload
@@ -149,41 +148,6 @@ def render_progress_bar():
 
 
 # ---------------------------------------------------------------------------
-# Sidebar
-# ---------------------------------------------------------------------------
-def render_sidebar():
-    """Render the sidebar with pipeline status and learning metrics."""
-    fb = get_feedback_store()
-
-    with st.sidebar:
-        st.header("Pipeline Status")
-        step = st.session_state.current_step
-        status_items = [
-            ("1. Upload", step >= 1, st.session_state.input_image is not None),
-            ("2. Reference Match", step >= 2, st.session_state.selected_ref is not None),
-            ("3. Dimensions", step >= 3, st.session_state.approved_dimensions is not None),
-            ("4. Download", step >= 4, st.session_state.feedback_submitted),
-        ]
-        for label, active, done in status_items:
-            if done:
-                st.write(f"[Done] {label}")
-            elif active:
-                st.write(f"[Active] {label}")
-            else:
-                st.write(f"[  --  ] {label}")
-
-        st.divider()
-
-        if st.button("Reset Pipeline"):
-            for k, v in DEFAULTS.items():
-                st.session_state[k] = v
-            st.session_state.session_id = fb.create_session()
-            st.rerun()
-
-        render_sidebar_metrics(fb)
-
-
-# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 def main():
@@ -191,7 +155,6 @@ def main():
     st.caption("Upload | Match | Dimensions | Download")
 
     render_progress_bar()
-    render_sidebar()
 
     fb = get_feedback_store()
     cd = get_correction_dict(fb)
